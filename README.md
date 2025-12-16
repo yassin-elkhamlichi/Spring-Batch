@@ -151,7 +151,7 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
 ## 8  IMPLEMENTATION : 
 
 
-## 1\ Project Context: The "LegacyTrust" AcquisitionTo demonstrate enterprise batch processing
+## 1\ Project Context: Enterprise Batch Integration for LegacyTrust Acquisition
 > we are simulating a real-world financial migration scenario.
 
 * **The Scenario:** "MegaBank" has acquired "LegacyTrust."
