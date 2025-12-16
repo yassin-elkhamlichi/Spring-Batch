@@ -19,7 +19,8 @@ target/
 *.iml
 *.ipr
 /home/yassine/IdeaProjects/Spring-Batch/.idea
-
+spring_batch_demo/data/
+data/
 ### NetBeans ###
 /nbproject/private/
 /nbbuild/
