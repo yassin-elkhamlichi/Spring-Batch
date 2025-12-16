@@ -163,7 +163,8 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
 
 ---
 
-## 2\ High-Level ArchitectureBefore diving into the code, visualize the data flow of the `importCustomers` Job:
+## 2\ High-Level Architecture
+Before diving into the code, visualize the data flow of the `importCustomers` Job:
 
 1. **The Trigger (Controller):** An external REST API call acts as the "Start Button."
 2. **The Operator:** The Controller invokes the JobOperator. This acts as the operations center, triggering the execution..
@@ -309,8 +310,6 @@ public class SpringBatchConfig {
   * **`JobBuilder`**: Creates the Job named "importCustomers".
   * **`flow(step1)`**: Tells the Job to execute Step 1.
 
------
-Continuing from where we left off with the configuration file, here is the explanation for the **Controller**, which acts as the "remote control" for your batch process.
 
 -----
 ### 4. Code Explanation: `CustomerProcessor.java`
@@ -441,11 +440,6 @@ public class JobController {
       * The user (Postman) will see a "loading" spinner until the job finishes processing all 10,000 records.
 
   * **`return`**: Once the loop breaks (Job is COMPLETED or FAILED), we send the final status back to the user.
-
------
-Here is the detailed explanation for the final two configuration pieces: the **`application.properties`** (The Environment) and the **`pom.xml`** (The Tools).
-
-These files are the foundation that makes your Java code run.
 
 -----
 
