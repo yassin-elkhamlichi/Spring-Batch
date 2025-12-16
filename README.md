@@ -166,7 +166,7 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
 ## 2\ High-Level ArchitectureBefore diving into the code, visualize the data flow of the `importCustomers` Job:
 
 1. **The Trigger (Controller):** An external REST API call acts as the "Start Button."
-2. **The Launcher:** The Controller invokes the `JobLauncher`, waking up the Spring Batch engine.
+2. **The Operator:** The Controller invokes the JobOperator. This acts as the operations center, triggering the execution..
 3. **The Job:** The container that manages the lifecycle of the process.
 4. **The Step (Chunk-Oriented Processing):** The engine runs a loop handling 100 records at a time:
 * **Reader:** Streams data line-by-line from the CSV.
