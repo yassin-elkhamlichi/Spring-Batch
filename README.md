@@ -151,7 +151,7 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
 ## 8  IMPLEMENTATION : 
 
 
-## 1\ Project Context: Enterprise Batch Integration for LegacyTrust Acquisition
+## 1\. Project Context: Enterprise Batch Integration for LegacyTrust Acquisition
 > we are simulating a real-world financial migration scenario.
 
 * **The Scenario:** "MegaBank" has acquired "LegacyTrust."
@@ -163,7 +163,7 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
 
 ---
 
-## 2\ High-Level Architecture
+## 2\. High-Level Architecture
 Before diving into the code, visualize the data flow of the `importCustomers` Job:
 
 1. **The Trigger (Controller):** An external REST API call acts as the "Start Button."
