@@ -66,7 +66,7 @@ While a manual loop works for small datasets (e.g., 50 records), it fails catast
 
 
 
-### 💡 Conclusion: Don't Reinvent the WheelWriting a batch process manually is like building a car by hand. You might get it to move, but you will have to manually build the braking system (Transactions), the GPS (Restartability), and the airbags (Fault Tolerance). **Spring Batch** provides the Ferrari pre-built, tested, and ready to race.
+>💡 Conclusion: Don't Reinvent the WheelWriting a batch process manually is like building a car by hand. You might get it to move, but you will have to manually build the braking system (Transactions), the GPS (Restartability), and the airbags (Fault Tolerance). **Spring Batch** provides the Ferrari pre-built, tested, and ready to race.
 
 ---
 
