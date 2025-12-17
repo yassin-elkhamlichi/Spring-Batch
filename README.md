@@ -148,11 +148,12 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
     * *Benefit:* When the user clicks "Download" later, the file is already there (fast retrieval).
 
 ---
-## 8  IMPLEMENTATION : 
 
+# 8. IMPLEMENTATION GUIDE
 
-## 1\. Project Context: Enterprise Batch Integration for LegacyTrust Acquisition
-> we are simulating a real-world financial migration scenario.
+## 8.1. Project Context: The "LegacyTrust" Acquisition
+
+To demonstrate enterprise batch processing, we are simulating a critical financial migration scenario.
 
 * **The Scenario:** "MegaBank" has acquired "LegacyTrust."
 * **The Mission:** Migrate **10,000 legacy customer records** (`customers.csv`) into our modern SQL database.
@@ -161,411 +162,278 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
 2. **Retention Bonus:** Apply a **10% Welcome Bonus** to the balance of every migrated customer.
 
 
----
-
-## 2\. High-Level Architecture
-Before diving into the code, visualize the data flow of the `importCustomers` Job:
-
-1. **The Trigger (Controller):** An external REST API call acts as the "Start Button."
-2. **The Operator:** The Controller invokes the JobOperator. This acts as the operations center, triggering the execution..
-3. **The Job:** The container that manages the lifecycle of the process.
-4. **The Step (Chunk-Oriented Processing):** The engine runs a loop handling 100 records at a time:
-* **Reader:** Streams data line-by-line from the CSV.
-* **Processor:** Filters minors and calculates the 10% bonus.
-* **Writer:** Persists a batch of 100 records to the database in a **single transaction**.
-
-
-5. **The Result:** 10,000 records are processed, validated, and saved in seconds.
 
 ---
 
-### 3\. Code Explanation: `SpringBatchConfig.java`
+## 8.2. Step 1: The Toolbox (`pom.xml`)
 
-This file is the **Brain** of your application. It wires everything together.
+We begin by defining the libraries required. This project uses **Spring Boot 4.0.0**, which introduces modular changes to H2 and Hibernate.
 
-#### A. Class Setup
+### Key Dependencies Explanation
+
+**1. The Foundation (Spring Batch & Web)**
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-batch</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+
+```
+
+* **`starter-batch`**: Provides the Batch engine (JobLauncher, Readers, Writers, Chunk logic).
+* **`starter-web`**: Includes Tomcat and Spring MVC, allowing us to build the **REST Controller** to trigger jobs manually.
+
+**2. Database & H2 Console (SB4 Update)**
+
+```xml
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-h2console</artifactId>
+</dependency>
+
+```
+
+* **`h2`**: The high-speed, in-memory SQL engine.
+* **`spring-boot-h2console`**: In Spring Boot 4, the web console was moved to its own module. We must include this to access the GUI at `/h2-console`.
+
+**3. Data & Utilities**
+
+* **`starter-data-jpa`**: Includes **Hibernate 7** and Spring Data for saving Customer entities without writing raw SQL.
+* **`lombok`**: Reduces boilerplate code (Getters/Setters) in the Entity class.
+
+---
+
+## 8.3. Step 2: The Environment (`application.properties`)
+
+This file configures the runtime behavior, specifically tuning H2 for compatibility with modern Spring Boot versions.
+
+### A. Server & Database Config
+
+```properties
+spring.application.name=spring-batch-demo
+server.port=8080
+
+# Database Configuration (Optimized for SB4)
+# NON_KEYWORDS=KEY,VALUE is critical for H2 v2+ compatibility
+spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;NON_KEYWORDS=KEY,VALUE
+spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+
+```
+
+* **`jdbc:h2:mem:testdb`**: Runs the DB in RAM. `DB_CLOSE_DELAY=-1` ensures the DB doesn't vanish if the connection pool sleeps.
+* **`NON_KEYWORDS`**: H2 v2 is stricter; this setting prevents errors if our table uses reserved words like "Key" or "Value".
+
+### B. JPA & Console Settings
+
+```properties
+# SB4 uses Hibernate 7 by default (Auto-detects dialect)
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.open-in-view=false
+
+# H2 Console GUI
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+spring.h2.console.settings.web-allow-others=true
+
+```
+
+* **`ddl-auto=update`**: Automatically creates/updates the `CUSTOMER` table schema on startup.
+* **`web-allow-others`**: Allows the console to be accessed from the browser.
+
+### C. Batch Engine Settings
+
+```properties
+# Schema Initialization
+spring.batch.jdbc.initialize-schema=always
+
+# ⚠️ Prevent Auto-Run (Manual Trigger Only)
+spring.batch.job.enabled=false
+
+# Observability (New in SB4)
+management.observations.key-values.spring.batch.job.name=true
+
+```
+
+* **`initialize-schema=always`**: Forces creation of Spring Batch metadata tables (`BATCH_JOB_INSTANCE`, etc.).
+* **`job.enabled=false`**: Crucial. We disable automatic execution so we can trigger the job explicitly via API.
+
+---
+
+## 8.4. Step 3: The Architecture (`SpringBatchConfig.java`)
+
+This class is the "Brain" that wires the Reader, Processor, and Writer into a cohesive **Job**.
+
+### A. The Input (ItemReader) & Mapper
+
+This section defines how we read the file and translate it.
+
+**1. The Reader**
 
 ```java
-@Configuration
-@AllArgsConstructor
-public class SpringBatchConfig {
-    private CustomerRepository customerRepository;
-```
-
-  * **`@Configuration`**: Tells Spring Boot: "This class contains definitions for Beans (components) that you need to create."
-  * **`@AllArgsConstructor`**: A Lombok annotation. It creates a constructor for `customerRepository` automatically, allowing Spring to inject your Database repository so we can save data later.
-
-#### B. The Reader (Input)
-
-```java
-    @Bean
-    public FlatFileItemReader<Customer> reader() {
-        return new FlatFileItemReaderBuilder<Customer>()
-                .name("csvReader")
-                .resource(new ClassPathResource("db/customers.csv"))
-                .linesToSkip(0)
-                .lineMapper(lineMapper())
-                .build();
-    }
-```
-
-  * **`FlatFileItemReader`**: A specialized class optimized to read large text files without loading the whole file into RAM.
-  * **`new ClassPathResource(...)`**: **Crucial Update.** Instead of a file path on your laptop (`C:/Users/...`), this looks inside the project's **classpath** (resources folder). This makes your code **portable** (it runs on Docker, Linux, or Windows without changing code).
-  * **`linesToSkip(0)`**: Tells the reader if there is a header row to ignore.
-  * **`lineMapper()`**: Calls the method below to understand how to parse the text.
-
-#### C. The LineMapper (Translation Logic)
-
-```java
-    private LineMapper<Customer> lineMapper() {
-        DefaultLineMapper<Customer> lineMapper = new DefaultLineMapper<>();
-
-        DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
-        lineTokenizer.setDelimiter(",");
-        lineTokenizer.setStrict(false);
-        lineTokenizer.setNames("id", "firstName", "lastName", "email", "gender", "contactNo", "country", "dob");
-```
-
-  * **`DelimitedLineTokenizer`**: A tool that splits a line of text based on a symbol.
-  * **`setDelimiter(",")`**: We are telling it: "Split the line whenever you see a comma."
-  * **`setNames(...)`**: This maps the columns by index. Column 0 is `id`, Column 1 is `firstName`, etc.
-
-<!-- end list -->
-
-```java
-        BeanWrapperFieldSetMapper<Customer> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
-        fieldSetMapper.setTargetType(Customer.class);
-
-        lineMapper.setLineTokenizer(lineTokenizer);
-        lineMapper.setFieldSetMapper(fieldSetMapper);
-        return lineMapper;
-    }
-```
-
-  * **`BeanWrapperFieldSetMapper`**: This takes the values found by the Tokenizer and "injects" them into your `Customer` object using its Setters.
-  * **`setTargetType(Customer.class)`**: Tells it to create instances of your `Customer` entity.
-
-#### D. The Processor (Logic)
-
-```java
-    @Bean
-    public CustomerProcessor processor() {
-        return new CustomerProcessor();
-    }
-```
-
-  * Simply creates an instance of your Processor class (where you can add filtering or business logic later).
-
-#### E. The Writer (Output)
-
-```java
-    @Bean
-    public RepositoryItemWriter<Customer> writer() {
-       return new RepositoryItemWriterBuilder<Customer>()
-               .repository(customerRepository)
-               .methodName("save")
-               .build();
-    }
-```
-
-  * **`RepositoryItemWriter`**: A smart writer that knows how to talk to Spring Data JPA.
-  * **`methodName("save")`**: It tells Spring Batch: "When you have a list of customers, call the `save` method on the `customerRepository`."
-
-#### F. The Step (The Workflow)
-
-```java
-    @Bean
-    public Step step1(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager) {
-        return new StepBuilder("csv-import-step", jobRepository)
-                .<Customer, Customer>chunk(100)
-                .reader(reader())
-                .processor(processor())
-                .writer(writer())
-                .faultTolerant() 
-                .retry(ObjectOptimisticLockingFailureException.class)
-                .retryLimit(3)
-                .transactionManager(platformTransactionManager) // Changed to specific manager
-                .build();
-    }
-```
-
-  * **`chunk(100)`**: **Performance Key.** It reads 100 items, processes them, and waits. Once it has 100, it writes them all at once.
-  * **`faultTolerant()`**: **Advanced Feature.** Tells Spring Batch: "If an error happens, don't crash immediately."
-  * **`retry(...)`**: Specifically, if a database locking error occurs (`ObjectOptimisticLockingFailureException`), try again.
-  * **`retryLimit(3)`**: Try up to 3 times before failing. This makes your system robust.
-  * **`transactionManager`**: Manages the database transaction (Commit/Rollback).
-
-#### G. The Job (The Manager)
-
-```java
-    @Bean
-    public Job runJob(JobRepository jobRepository, PlatformTransactionManager transactionManager){
-        return new JobBuilder("importCustomers", jobRepository)
-                .flow(step1(jobRepository, transactionManager))
-                .end()
-                .build();
-    }
-```
-
-  * **`JobBuilder`**: Creates the Job named "importCustomers".
-  * **`flow(step1)`**: Tells the Job to execute Step 1.
-
-
------
-### 4. Code Explanation: `CustomerProcessor.java`
-
-**Role:** It receives a raw `Customer` object, applies business rules, and decides whether to pass it to the database or discard it.
-
-### 1. Code Breakdown & Logic
-#### A. The Interface Contract```java
-public class CustomerProcessor implements ItemProcessor<Customer, Customer>
-
-```
-
-* **Concept:** We implement the Spring Batch `ItemProcessor<I, O>` interface.
-* **Input (`I`):** `Customer` (Raw data read from CSV).
-* **Output (`O`):** `Customer` (Processed data ready for DB).
-* **Why?** This tells Spring Batch that this class handles the logic for one item at a time.
-
-####B. Date Parsing & Age Calculation```java
-DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d-M-yyyy");
-LocalDate dob = LocalDate.parse(customer.getDob(), formatter);
-int age = Period.between(dob, LocalDate.now()).getYears();
-
-```
-
-* **Logic:** The CSV contains dates as Strings (e.g., "15-5-1990"). We parse this into a Java `LocalDate` object.
-* **Business Value:** We calculate the exact age dynamically using `Period.between()`, ensuring the age is accurate to the exact millisecond of execution.
-
-#### C. The Filtering Logic (The "Gatekeeper")```java
-if (age < 18) {
-return null;
+@Bean
+public FlatFileItemReader<Customer> reader() {
+    return new FlatFileItemReaderBuilder<Customer>()
+            .name("csvReader")
+            .resource(new ClassPathResource("db/customers.csv"))
+            .linesToSkip(0)
+            .lineMapper(lineMapper())
+            .build();
 }
 
 ```
 
-* **Critical Concept:** In Spring Batch, returning `null` from a Processor indicates that the item should be **filtered out** (dropped).
-* **Result:** If a customer is under 18, they are instantly removed from the pipeline. They will **not** reach the `ItemWriter` and will **not** be saved to the database. This saves storage and ensures compliance with banking laws.
+* **`ClassPathResource`**: Ensures portability. The code looks for the CSV inside the compiled JAR/Classpath, not a hardcoded file path like `C:/Users`.
 
-####D. Data Transformation (The Welcome Bonus)```java
-count++;
-double originalBalance = customer.getBalance();
-double bonus = originalBalance * 0.10;
-double finalBalance = originalBalance + bonus;
-customer.setBalance(finalBalance);
+**2. The LineMapper (The Translator)**
+
+```java
+private LineMapper<Customer> lineMapper() {
+    DefaultLineMapper<Customer> lineMapper = new DefaultLineMapper<>();
+
+    // 1. Tokenizer: Splits the line "1,John,Doe,..." into pieces
+    DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
+    lineTokenizer.setDelimiter(",");
+    lineTokenizer.setStrict(false);
+    lineTokenizer.setNames("id", "firstName", "lastName", "email", "gender", "contactNo", "country", "dob", "balance");
+
+    // 2. Mapper: Puts those pieces into the Customer object
+    BeanWrapperFieldSetMapper<Customer> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
+    fieldSetMapper.setTargetType(Customer.class);
+
+    lineMapper.setLineTokenizer(lineTokenizer);
+    lineMapper.setFieldSetMapper(fieldSetMapper);
+    return lineMapper;
+}
 
 ```
 
-* **Logic:** For customers who pass the age check, we apply the "Acquisition Strategy."
-* **Action:** We calculate a 10% bonus on their imported balance and update the `Customer` object.
-* **Static Counter (`count++`):** We maintain a simple counter to track how many users successfully passed the filter (useful for simple metrics).
+* **`DelimitedLineTokenizer`**: It cuts the line of text every time it sees a comma (`,`). We explicitly map the columns to the matching field names in our Entity (including the new `balance` field).
+* **`BeanWrapperFieldSetMapper`**: It takes the values found by the tokenizer and automatically injects them into a new `Customer` object using Java Reflection (Setters).
 
-#### E. Logging & Return```java
-System.out.println("✅ Accepted: " + ... );
-return customer;
+### B. The Output (ItemWriter)
+
+```java
+@Bean
+public RepositoryItemWriter<Customer> writer() {
+   return new RepositoryItemWriterBuilder<Customer>()
+           .repository(customerRepository)
+           .methodName("save")
+           .build();
+}
 
 ```
 
-* **Logging:** Provides real-time visibility in the console, showing exactly who was accepted and their new financial status.
-* **Return:** We return the *modified* `customer` object. This object is passed to the Aggregator (Chunk), waiting to be written to the Database.
+* Connects directly to **Spring Data JPA**. It batches inserts and calls `customerRepository.save()` efficiently.
 
+### C. The Workflow (Step & Job)
 
------
-### 5\. Code Explanation: `JobController.java`
+This is where we define the execution flow.
 
-This file is the **Trigger**. While `SpringBatchConfig` built the engine, this controller builds the "Start Button" that allows you to turn that engine on via a REST API (Postman).
+**1. The Step (The Worker)**
 
-#### A. The Web Setup
+```java
+@Bean
+public Step step1(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager) {
+    return new StepBuilder("csv-import-step", jobRepository)
+            .<Customer, Customer>chunk(100) // Performance Optimization
+            .reader(reader())
+            .processor(processor())
+            .writer(writer())
+            .faultTolerant() 
+            .retryLimit(3) // Resilience
+            .transactionManager(platformTransactionManager)
+            .build();
+}
+
+```
+
+* **`chunk(100)`**: The core performance feature. It commits transactions every 100 records instead of 1, reducing I/O overhead by 99%.
+
+**2. The Job (The Manager)**
+
+```java
+@Bean
+public Job runJob(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+    return new JobBuilder("importCustomers", jobRepository)
+            .flow(step1(jobRepository, transactionManager))
+            .end()
+            .build();
+}
+
+```
+
+* **`JobBuilder`**: Creates the Job container named `"importCustomers"`.
+* **`flow(step1)`**: Defines the sequence. Here, we tell the Job to execute our `step1`.
+
+---
+
+## 8.5. Step 4: The Logic (`CustomerProcessor.java`)
+
+This component acts as the **"Gatekeeper" & "Accountant"**. It transforms raw data into compliant information.
+
+```java
+public class CustomerProcessor implements ItemProcessor<Customer, Customer> {
+    @Override
+    public Customer process(Customer customer) {
+        // 1. Compliance Logic (Filter)
+        int age = calculateAge(customer.getDob());
+        if (age < 18) {
+            return null; // Returning null drops the record from the pipeline
+        }
+
+        // 2. Business Logic (Transform)
+        double newBalance = customer.getBalance() * 1.10; // Apply 10% Bonus
+        customer.setBalance(newBalance);
+        
+        return customer;
+    }
+}
+
+```
+
+* **Filter:** If a customer is under 18, we return `null`. Spring Batch understands this as "Skip this record; do not save to DB."
+* **Transform:** For valid customers, we calculate the bonus in-memory before passing the object to the Writer.
+
+---
+
+## 8.6. Step 5: The Trigger (`JobController.java`)
+
+The "Remote Control" that allows us to manage execution via REST API.
 
 ```java
 @RestController
 @RequestMapping("job")
 public class JobController {
-```
-
-  * **`@RestController`**: Tells Spring Boot: "This class handles HTTP requests (GET, POST) and returns data directly (JSON or Text), not an HTML view."
-  * **`@RequestMapping("job")`**: Sets the base URL. All URLs in this class will start with `/job`.
-
-#### B. The Wiring
-
-```java
-    @Autowired
-    private JobOperator jobOperator; // (Note: As discussed, JobLauncher is better for Object param)
 
     @Autowired
-    private Job job;
-```
+    private JobOperator jobOperator;
 
-  * **`@Autowired`**: Dependency Injection. We are asking Spring to give us the `Job` bean we created in the Config file so we can execute it.
-  * **`JobOperator` / `JobLauncher`**: This is the component responsible for actually kicking off the execution.
-
-#### C. The "Start Button" & Uniqueness
-
-```java
     @PostMapping("start")
     public String startJob() {
-        try {
-            JobParameters jobParameters = new JobParametersBuilder()
-                    .addLong("startAt", System.currentTimeMillis())
-                    .toJobParameters();
+        // 1. Create Unique Parameters
+        JobParameters params = new JobParametersBuilder()
+                .addLong("startAt", System.currentTimeMillis())
+                .toJobParameters();
+
+        // 2. Trigger via Operator
+        JobExecution execution = jobOperator.start(job, params);
+        
+        return "Job Started with ID: " + execution.getId();
+    }
+}
+
 ```
 
-  * **`@PostMapping("start")`**: Maps HTTP POST requests sent to `/job/start` to this method.
-  * **`JobParameters`**: **Crucial Concept for Students.** Spring Batch is designed so that a Job Instance is unique based on its parameters.
-      * If you run a job with `date=2023-01-01` and it succeeds, Spring Batch **will not let you run it again** with `date=2023-01-01`. It thinks the work is already done.
-  * **`System.currentTimeMillis()`**: We add the current time (millisecond precision) as a parameter. This tricks Spring Batch into thinking every click is a **new, unique job instance**, allowing us to run the import as many times as we want.
-
-#### D. Execution & Monitoring Loop
-
-```java
-            // This line triggers the job
-            JobExecution execution = jobOperator.start(job, jobParameters);
-
-            // The Monitoring Loop
-            while (execution.isRunning()) {
-                System.out.println("Job Started with ID: " + execution.getId());
-                System.out.println("... Processing ... Current Status: " + execution.getStatus());
-                Thread.sleep(1000);
-            }
-
-            return "JOB FINISHED with Status: " + execution.getStatus();
-```
-
-  * **`start(...)`**: This command fires the `JobLauncher` -\> which calls the `Job` -\> which starts the `Step`.
-
-  * **`while (execution.isRunning())`**: This is a simple "polling" mechanism.
-
-      * Usually, `JobLauncher` runs asynchronously (in the background).
-      * This loop forces the Controller to **wait** and check the status every 1 second (`Thread.sleep(1000)`).
-      * The user (Postman) will see a "loading" spinner until the job finishes processing all 10,000 records.
-
-  * **`return`**: Once the loop breaks (Job is COMPLETED or FAILED), we send the final status back to the user.
-
------
-
-### 6\. `application.properties` Explanation
-
-This file tells Spring Boot **"where"** to run and **"how"** to behave.
-
-#### A. Server & Application Identity
-
-```properties
-# Server
-server.port=8080
-spring.application.name=spring_batch_demo
-```
-
-  * **`server.port=8080`**: Opens port 8080 on your machine so you can access the app via `localhost:8080`.
-  * **`spring.application.name`**: Gives your application a specific ID (useful for logging or microservices).
-
-#### B. Database Configuration (The "Memory" DB)
-
-```properties
-# Database Configuration (In Memory)
-spring.datasource.url=jdbc:h2:mem:testdb
-spring.datasource.driverClassName=org.h2.Driver
-spring.datasource.username=sa
-spring.datasource.password=
-```
-
-  * **`jdbc:h2:mem:testdb`**: **Crucial Line.**
-      * `mem` means **Memory**. The database lives inside the RAM (Random Access Memory).
-      * **Pros:** Extremely fast for batch processing demos.
-      * **Cons:** If you restart the application, **all data is lost**. (This is why we regenerate data every time).
-  * **`sa`**: The default username (System Administrator).
-  * **`password=`**: Left empty for easier access during development.
-
-#### C. JPA Settings (The ORM Magic)
-
-```properties
-# JPA Settings
-spring.jpa.show-sql=true
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
-spring.jpa.defer-datasource-initialization=true
-```
-
-  * **`show-sql=true`**: Prints every SQL query to the console. Great for debugging to see Spring Batch inserting records.
-  * **`ddl-auto=update`**: Automatically creates or updates the database tables (`CUSTOMER` table) to match your Java `@Entity` class. You don't need to write `CREATE TABLE` scripts manually.
-  * **`H2Dialect`**: Tells Hibernate to speak "H2 Language" (SQL syntax specific to H2).
-
-#### D. H2 Console (The GUI)
-
-```properties
-# H2 Console Settings
-spring.h2.console.enabled=true
-spring.h2.console.path=/h2-console
-spring.h2.console.settings.web-allow-others=true
-```
-
-  * **`enabled=true`**: Turns on the visual interface (the green login screen).
-  * **`path=/h2-console`**: Sets the URL where you find it.
-  * **`web-allow-others=true`**: Security setting that ensures the console is accessible even if connection settings are strict.
-
-#### E. Batch Settings (The Engine Config)
-
-```properties
-# Batch Settings
-spring.batch.jdbc.initialize-schema=always
-spring.batch.job.enabled=false
-```
-
-  * **`initialize-schema=always`**: Spring Batch requires specific meta-data tables (like `BATCH_JOB_INSTANCE`, `BATCH_STEP_EXECUTION`) to track history. This line forces Spring to create those tables automatically at startup.
-  * **`job.enabled=false`**: **Very Important.** By default, Spring Boot runs *all* jobs immediately on startup. We set this to `false` because we want to trigger the job **manually** using our REST Controller (`/job/start`).
-
------
-
-### 7\. `pom.xml` Dependencies Explanation
-
-This file is your **Toolbox**. It tells Maven which libraries to download from the internet.
-
-#### A. The Core Logic
-
-```xml
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-batch</artifactId>
-    </dependency>
-```
-
-  * **`starter-batch`**: Contains the core Spring Batch framework (JobLauncher, Readers, Writers, Chunk processing logic).
-
-#### B. Database & Data Handling
-
-```xml
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-jpa</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>com.h2database</groupId>
-        <artifactId>h2</artifactId>
-        <scope>runtime</scope>
-    </dependency>
-```
-
-  * **`starter-data-jpa`**: Includes Hibernate and Spring Data. It allows you to use the `CustomerRepository` interface to save data without writing SQL.
-  * **`h2`**: The actual database engine. It is scoped to `runtime` because we only need it when the app is running, not while compiling code.
-
-#### C. The Web Layer (REST API)
-
-```xml
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-webmvc</artifactId>
-    </dependency>
-```
-
-  * **`spring-boot-starter-webmvc`**: (Often just called `spring-boot-starter-web`). This includes **Tomcat** (the embedded server) and allows you to create `@RestController` and handle HTTP POST requests. Without this, your `JobController` would not work.
-
-#### D. Helper Tools
-
-```xml
-    <dependency>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok</artifactId>
-        <scope>annotationProcessor</scope>
-    </dependency>
-```
-
-  * **`lombok`**: A magical library. It allows you to use annotations like `@Data`, `@Getter`, `@Setter`, and `@AllArgsConstructor` so you don't have to write hundreds of lines of boilerplate code in your `Customer` entity.
+* **`JobOperator`**: We use the Operator interface (instead of a simple Launcher) for better control over the job lifecycle.
+* **`System.currentTimeMillis()`**: Passed as a parameter to ensure every request creates a **unique job instance**, allowing us to re-run the import as many times as needed.
