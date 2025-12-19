@@ -1,6 +1,26 @@
 # 📘 Spring Batch: Architecture & Mechanics
 ---
 
+## Table of Contents
+- [1. The Problem: Why not use a REST Controller?](#1-the-problem-why-not-use-a-rest-controller)
+- [2. Why Spring Batch?](#2-why-spring-batch)
+    - [1. Performance & Transaction Management](#1-performance--transaction-management-the-one-by-one-killer)
+    - [2. Restartability (State Management)](#2-restartability-state-management-the-manual-way)
+    - [3. Memory Safety (Preventing OOM)](#3-memory-safety-preventing-oom-the-manual-way)
+    - [4. Fault Tolerance (Resilience)](#4-fault-tolerance-resilience-the-manual-way)
+- [3. Core Architecture Components](#3-core-architecture-components)
+- [4. Is Spring Batch an ETL Tool?](#4-is-spring-batch-an-etl-tool)
+- [5. Core Differences: ETL Tools vs. Spring Batch](#5-core-differences-etl-tools-vs-spring-batch)
+- [6. Key Use Cases (Beyond ETL)](#6-key-use-cases-beyond-etl)
+- [7. Real-time vs. Batch (The "Bank Statement" Analogy)](#7-real-time-vs-batch-the-bank-statement-analogy)
+- [8. IMPLEMENTATION GUIDE](#8-implementation-guide)
+    - [8.1. Project Context: The "LegacyTrust" Acquisition](#81-project-context-the-legacytrust-acquisition)
+    - [8.2. Step 1: The Toolbox (pom.xml)](#82-step-1-the-toolbox-pomxml)
+    - [8.3. Step 2: The Environment (application.properties)](#83-step-2-the-environment-applicationproperties)
+    - [8.4. Step 3: The Architecture (SpringBatchConfig.java)](#84-step-3-the-architecture-springbatchconfigjava)
+    - [8.5. Step 4: The Logic (CustomerProcessor.java)](#85-step-4-the-logic-customerprocessorjava)
+    - [8.6. Step 5: The Trigger (JobController.java)](#86-step-5-the-trigger-jobcontrollerjava)
+
 ## 1. The Problem: Why not use a REST Controller?
 In an E-commerce system, a REST API is designed for **Real-time/Synchronous** operations (e.g., a user buying a product).
 However, for bulk operations (e.g., sending 100k invoices, calculating daily profit from millions of rows), a REST Controller fails because:
@@ -149,9 +169,9 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
 
 ---
 
-# 8. IMPLEMENTATION GUIDE
+## 8. IMPLEMENTATION GUIDE
 
-## 8.1. Project Context: The "LegacyTrust" Acquisition
+### 8.1. Project Context: The "LegacyTrust" Acquisition
 
 To demonstrate enterprise batch processing, we are simulating a critical financial migration scenario.
 
@@ -165,7 +185,7 @@ To demonstrate enterprise batch processing, we are simulating a critical financi
 
 ---
 
-## 8.2. Step 1: The Toolbox (`pom.xml`)
+### 8.2. Step 1: The Toolbox (`pom.xml`)
 
 We begin by defining the libraries required. This project uses **Spring Boot 4.0.0**, which introduces modular changes to H2 and Hibernate.
 
@@ -213,7 +233,7 @@ We begin by defining the libraries required. This project uses **Spring Boot 4.0
 
 ---
 
-## 8.3. Step 2: The Environment (`application.properties`)
+### 8.3. Step 2: The Environment (`application.properties`)
 
 This file configures the runtime behavior, specifically tuning H2 for compatibility with modern Spring Boot versions.
 
@@ -270,7 +290,7 @@ management.observations.key-values.spring.batch.job.name=true
 
 ---
 
-## 8.4. Step 3: The Architecture (`SpringBatchConfig.java`)
+### 8.4. Step 3: The Architecture (`SpringBatchConfig.java`)
 
 This class is the "Brain" that wires the Reader, Processor, and Writer into a cohesive **Job**.
 
@@ -378,7 +398,7 @@ public Job runJob(JobRepository jobRepository, PlatformTransactionManager transa
 
 ---
 
-## 8.5. Step 4: The Logic (`CustomerProcessor.java`)
+### 8.5. Step 4: The Logic (`CustomerProcessor.java`)
 
 This component acts as the **"Gatekeeper" & "Accountant"**. It transforms raw data into compliant information.
 
@@ -407,7 +427,7 @@ public class CustomerProcessor implements ItemProcessor<Customer, Customer> {
 
 ---
 
-## 8.6. Step 5: The Trigger (`JobController.java`)
+### 8.6. Step 5: The Trigger (`JobController.java`)
 
 The "Remote Control" that allows us to manage execution via REST API.
 
