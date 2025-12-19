@@ -22,15 +22,9 @@
   - [8.6. Step 5: The Trigger (JobController.java)](#86-step-5-the-trigger-jobcontrollerjava)
 
 ## 1. The Problem: Why not use a REST Controller?
-In an E-commerce system, a REST API is designed for **Real-time/Synchronous** operations (e.g., a user buying a product).
-However, for bulk operations (e.g., sending 100k invoices, calculating daily profit from millions of rows), a REST Controller fails because:
-* **Timeouts:** HTTP requests will time out before the process finishes.
-* **Out of Memory (OOM):** Loading 1 million rows into memory at once will crash the server.
+Before Spring Batch, developers often loaded entire datasets into memory — a pattern that works for 100 records, but brings servers to their knees at scale.
 
-**Spring Batch** solves this by processing data in **Chunks** (small pieces) without human intervention.
-* **Restartability:** If a job fails at record #5000, you can resume exactly from #5000 (no need to restart from 0).
-* **Transaction Management:** Automatically handles commits and rollbacks.
-
+A single findAll() on a million-row table isn’t just inefficient — it’s catastrophic.
 
 ---
 
