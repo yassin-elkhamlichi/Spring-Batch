@@ -32,8 +32,6 @@ However, for bulk operations (e.g., sending 100k invoices, calculating daily pro
 * **Transaction Management:** Automatically handles commits and rollbacks.
 
 
-Here is the new section for your personal documentation. It is written in professional technical English, ready to copy and paste.
-
 ---
 
 ## 2.  Why Spring Batch?
@@ -249,31 +247,28 @@ server.port=8080
 
 # Database Configuration (Optimized for SB4)
 # NON_KEYWORDS=KEY,VALUE is critical for H2 v2+ compatibility
-spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;NON_KEYWORDS=KEY,VALUE
+spring.datasource.url=jdbc:h2:mem:testdb;
 spring.datasource.driver-class-name=org.h2.Driver
 spring.datasource.username=sa
 
 ```
 
-* **`jdbc:h2:mem:testdb`**: Runs the DB in RAM. `DB_CLOSE_DELAY=-1` ensures the DB doesn't vanish if the connection pool sleeps.
-* **`NON_KEYWORDS`**: H2 v2 is stricter; this setting prevents errors if our table uses reserved words like "Key" or "Value".
+* **`jdbc:h2:mem:testdb`**: Runs the DB in RAM. 
 
 ### B. JPA & Console Settings
 
 ```properties
-# SB4 uses Hibernate 7 by default (Auto-detects dialect)
+
 spring.jpa.hibernate.ddl-auto=update
-spring.jpa.open-in-view=false
 
 # H2 Console GUI
 spring.h2.console.enabled=true
 spring.h2.console.path=/h2-console
-spring.h2.console.settings.web-allow-others=true
+
 
 ```
 
 * **`ddl-auto=update`**: Automatically creates/updates the `CUSTOMER` table schema on startup.
-* **`web-allow-others`**: Allows the console to be accessed from the browser.
 
 ### C. Batch Engine Settings
 
@@ -284,8 +279,7 @@ spring.batch.jdbc.initialize-schema=always
 # ⚠️ Prevent Auto-Run (Manual Trigger Only)
 spring.batch.job.enabled=false
 
-# Observability (New in SB4)
-management.observations.key-values.spring.batch.job.name=true
+
 
 ```
 
