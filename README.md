@@ -4,22 +4,22 @@
 ## Table of Contents
 - [1. The Problem: Why not use a REST Controller?](#1-the-problem-why-not-use-a-rest-controller)
 - [2. Why Spring Batch?](#2-why-spring-batch)
-    - [1. Performance & Transaction Management](#1-performance--transaction-management-the-one-by-one-killer)
-    - [2. Restartability (State Management)](#2-restartability-state-management-the-manual-way)
-    - [3. Memory Safety (Preventing OOM)](#3-memory-safety-preventing-oom-the-manual-way)
-    - [4. Fault Tolerance (Resilience)](#4-fault-tolerance-resilience-the-manual-way)
+  - [1. Performance & Transaction Management](#1-performance--transaction-management-the-one-by-one-killer)
+  - [2. Restartability (State Management)](#2-restartability-state-management-the-manual-way)
+  - [3. Memory Safety (Preventing OOM)](#3-memory-safety-preventing-oom-the-manual-way)
+  - [4. Fault Tolerance (Resilience)](#4-fault-tolerance-resilience-the-manual-way)
 - [3. Core Architecture Components](#3-core-architecture-components)
 - [4. Is Spring Batch an ETL Tool?](#4-is-spring-batch-an-etl-tool)
 - [5. Core Differences: ETL Tools vs. Spring Batch](#5-core-differences-etl-tools-vs-spring-batch)
 - [6. Key Use Cases (Beyond ETL)](#6-key-use-cases-beyond-etl)
 - [7. Real-time vs. Batch (The "Bank Statement" Analogy)](#7-real-time-vs-batch-the-bank-statement-analogy)
 - [8. IMPLEMENTATION GUIDE](#8-implementation-guide)
-    - [8.1. Project Context: The "LegacyTrust" Acquisition](#81-project-context-the-legacytrust-acquisition)
-    - [8.2. Step 1: The Toolbox (pom.xml)](#82-step-1-the-toolbox-pomxml)
-    - [8.3. Step 2: The Environment (application.properties)](#83-step-2-the-environment-applicationproperties)
-    - [8.4. Step 3: The Architecture (SpringBatchConfig.java)](#84-step-3-the-architecture-springbatchconfigjava)
-    - [8.5. Step 4: The Logic (CustomerProcessor.java)](#85-step-4-the-logic-customerprocessorjava)
-    - [8.6. Step 5: The Trigger (JobController.java)](#86-step-5-the-trigger-jobcontrollerjava)
+  - [8.1. Project Context: The "LegacyTrust" Acquisition](#81-project-context-the-legacytrust-acquisition)
+  - [8.2. Step 1: The Toolbox (pom.xml)](#82-step-1-the-toolbox-pomxml)
+  - [8.3. Step 2: The Environment (application.properties)](#83-step-2-the-environment-applicationproperties)
+  - [8.4. Step 3: The Architecture (SpringBatchConfig.java)](#84-step-3-the-architecture-springbatchconfigjava)
+  - [8.5. Step 4: The Logic (CustomerProcessor.java)](#85-step-4-the-logic-customerprocessorjava)
+  - [8.6. Step 5: The Trigger (JobController.java)](#86-step-5-the-trigger-jobcontrollerjava)
 
 ## 1. The Problem: Why not use a REST Controller?
 In an E-commerce system, a REST API is designed for **Real-time/Synchronous** operations (e.g., a user buying a product).
@@ -99,8 +99,7 @@ Think of Spring Batch as a **Factory Assembly Line**.
 2.  **Job:** The entire process encapsulating the whole logical flow (e.g., "End Of Month Invoicing Job").
 3.  **Step:** A Job consists of one or more Steps. The Step is where the actual work happens.
 4.  **JobRepository:** The "Black Box" (Database Tables). It persists the state of the batch execution (Success/Failure, current read count, logs).
-
-### 3. The Heartbeat: Chunk-Oriented Processing
+<br>**The Heartbeat: Chunk-Oriented Processing**
 Inside a **Step**, Spring Batch uses a specific strategy to manage memory efficiently. It does *not* read all data at once.
 
 * **ItemReader:** Reads data (from DB, CSV, Queue).
