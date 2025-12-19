@@ -20,6 +20,7 @@ public class JobController {
     @Autowired
     private JobOperator jobOperator;
 
+
     @Autowired
     private Job job;
 
@@ -31,16 +32,6 @@ public class JobController {
                     .toJobParameters();
 
             JobExecution execution = jobOperator.start(job, jobParameters);
-
-
-
-
-            while (execution.isRunning()) {
-                System.out.println("Job Started with ID: " + execution.getId());
-                System.out.println("... Processing ... Current Status: " + execution.getStatus());
-                Thread.sleep(1000);
-            }
-
 
             return "JOB FINISHED with Status: " + execution.getStatus();
 

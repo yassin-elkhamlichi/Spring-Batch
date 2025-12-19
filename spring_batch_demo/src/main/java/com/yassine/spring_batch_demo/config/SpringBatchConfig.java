@@ -59,15 +59,11 @@ public class SpringBatchConfig {
         return lineMapper;
 
     }
-
-
     // 2 PROCESSOR
     @Bean
     public CustomerProcessor processor() {
         return new CustomerProcessor();
     }
-
-
     // 3 WRITER
     @Bean
     public RepositoryItemWriter<Customer> writer() {
@@ -90,9 +86,7 @@ public class SpringBatchConfig {
                 .transactionManager(platformTransactionManager)
                 .build();
     }
-
     // 5 JOB
-
     @Bean
     public Job runJob(JobRepository jobRepository , PlatformTransactionManager transactionManager){
         return new JobBuilder("importCustomers", jobRepository)
