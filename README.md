@@ -2,7 +2,7 @@
 ---
 
 ## Table of Contents
-- [1. The Problem: Why not use a REST Controller?](#1-the-problem-why-not-use-a-rest-controller)
+- [1. The Problem](#1-the-problem)
 - [2. Why Spring Batch?](#2-why-spring-batch)
   - [1. Performance & Transaction Management](#1-performance--transaction-management-the-one-by-one-killer)
   - [2. Restartability (State Management)](#2-restartability-state-management-the-manual-way)
@@ -21,7 +21,7 @@
   - [8.5. Step 4: The Logic (CustomerProcessor.java)](#85-step-4-the-logic-customerprocessorjava)
   - [8.6. Step 5: The Trigger (JobController.java)](#86-step-5-the-trigger-jobcontrollerjava)
 
-## 1. The Problem: Why not use a REST Controller?
+## 1. The Problem
 Before Spring Batch, developers often loaded entire datasets into memory — a pattern that works for 100 records, but brings servers to their knees at scale.
 
 A single findAll() on a million-row table isn’t just inefficient — it’s catastrophic.
