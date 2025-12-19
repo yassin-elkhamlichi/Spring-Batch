@@ -14,7 +14,7 @@
 - [6. Key Use Cases (Beyond ETL)](#6-key-use-cases-beyond-etl)
 - [7. Real-time vs. Batch (The "Bank Statement" Analogy)](#7-real-time-vs-batch-the-bank-statement-analogy)
 - [8. IMPLEMENTATION GUIDE](#8-implementation-guide)
-  - [8.1. Project Context: The "LegacyTrust" Acquisition](#81-project-context-the-legacytrust-acquisition)
+  - [8.1. Project Context: The "AmanaBank" Migration](#81-project-context-the-amanabank-migration)
   - [8.2. Step 1: The Toolbox (pom.xml)](#82-step-1-the-toolbox-pomxml)
   - [8.3. Step 2: The Environment (application.properties)](#83-step-2-the-environment-applicationproperties)
   - [8.4. Step 3: The Architecture (SpringBatchConfig.java)](#84-step-3-the-architecture-springbatchconfigjava)
@@ -170,15 +170,15 @@ It is crucial to distinguish between **On-Demand** (REST API) and **Batch Proces
 
 ## 8. IMPLEMENTATION GUIDE
 
-### 8.1. Project Context: The "LegacyTrust" Acquisition
+### 8.1. Project Context: The "AmanaBank" Migration
 
 To demonstrate enterprise batch processing, we are simulating a critical financial migration scenario.
 
-* **The Scenario:** "MegaBank" has acquired "LegacyTrust."
-* **The Mission:** Migrate **10,000 legacy customer records** (`customers.csv`) into our modern SQL database.
+* **The Scenario:** "MegaBank" has purchased "AmanaBank."
+* **The Mission:** We need to transform and migrate AmanaBank's customer records into the MegaBank system..
 * **Business Rules:**
-1. **Compliance Filter:** Reject any customer under **18 years old**.
-2. **Retention Bonus:** Apply a **10% Welcome Bonus** to the balance of every migrated customer.
+  1. **Compliance Filter:** Reject any customer under **18 years old**.
+  2. **Retention Bonus:** Apply a **10% Welcome Bonus** to the balance of every migrated customer.
 
 
 
