@@ -36,12 +36,12 @@ Here is the new section for your personal documentation. It is written in profes
 
 ---
 
-## 2  Why Spring Batch? (vs. Manual Implementation)
+## 2.  Why Spring Batch?
 It is a common question: *"Why should I use a heavy framework like Spring Batch when I can just write a simple `for` loop and save data using `repository.save()`?"*
 
 While a manual loop works for small datasets (e.g., 50 records), it fails catastrophically in enterprise scenarios (e.g., 100k+ records). Here are the **four critical reasons** why Spring Batch is the industry standard.
 
-### 1. Performance & Transaction Management (The "One-by-One" Killer)* **The Manual Way (Naive Loop):**
+### 1. Performance & Transaction Management (The "One-by-One" Killer)
 * Iterating through a list and calling `.save()` opens and closes a database transaction for **every single record**.
 * **Result:** Processing 10,000 records requires 10,000 database connections. This causes massive latency and slows down the system significantly.
 
