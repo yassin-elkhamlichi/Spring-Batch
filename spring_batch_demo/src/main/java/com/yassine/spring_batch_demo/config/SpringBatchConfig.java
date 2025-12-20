@@ -57,7 +57,6 @@ public class SpringBatchConfig {
         lineMapper.setFieldSetMapper(fieldSetMapper);
 
         return lineMapper;
-
     }
     // 2 PROCESSOR
     @Bean

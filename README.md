@@ -169,14 +169,14 @@ To demonstrate enterprise batch processing, we are simulating a critical financi
 * **The Scenario:** "MegaBank" has purchased "AmanaBank."
 * **The Mission:** We need to transform and migrate AmanaBank's customer records into the MegaBank system..
 * **Business Rules:**
-  1. **Compliance Filter:** Reject any customer under **18 years old**.
+  1. **Age Filter:** Reject any customer under **18 years old**.
   2. **Retention Bonus:** Apply a **10% Welcome Bonus** to the balance of every migrated customer.
 
 > #### 🔧 Technical Implementation
 > * **The Job (`importCustomers`)**: The high-level container that orchestrates the entire migration process from start to finish.
 > * **The Step (`csv-import-step`)**: A chunk-oriented step that executes the business logic:
 > 1. **READ:** Ingests raw data from `customers.csv`.
-> 2. **PROCESS:** Applies the **Compliance Filter** (removes minors) and calculates the **Retention Bonus** (updates balance).
+> 2. **PROCESS:** Applies the **Age Filter** (removes minors) and calculates the **Retention Bonus** (updates balance).
 > 3. **WRITE:** Persists the transformed records into the `CUSTOMERS` table in the H2 database.
 
 ---
